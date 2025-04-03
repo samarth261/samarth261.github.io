@@ -275,9 +275,50 @@
         function createProjectile() { /* ... same as before ... */
             const projElement = document.createElement('div'); projElement.className = 'projectile'; let dirX = (playerPos.x + characterSize / 2) - (aiPos.x + characterSize / 2); let dirY = (playerPos.y + characterSize / 2) - (aiPos.y + characterSize / 2); const magnitude = Math.sqrt(dirX * dirX + dirY * dirY); let velocityX = 0; let velocityY = 0; if (magnitude > 0) { velocityX = (dirX / magnitude) * projectileSpeed; velocityY = (dirY / magnitude) * projectileSpeed; } else { velocityX = projectileSpeed; } let startX = aiPos.x + characterSize / 2 - projectileSize / 2; let startY = aiPos.y + characterSize / 2 - projectileSize / 2; projElement.style.left = startX + 'px'; projElement.style.top = startY + 'px'; gameArea.appendChild(projElement); projectiles.push({ element: projElement, pos: { x: startX, y: startY }, velocity: { x: velocityX, y: velocityY } });
         }
-        function moveProjectiles() { /* ... same as before ... */
-            for (let i = projectiles.length - 1; i >= 0; i--) { const proj = projectiles[i]; proj.pos.x += proj.velocity.x; proj.pos.y += proj.velocity.y; proj.pos = wrapPosition(proj.pos, projectileSize); proj.element.style.left = proj.pos.x + 'px'; proj.element.style.top = proj.pos.y + 'px'; const projRect = getBoundingBox(null, proj.pos, projectileSize); const playerRect = getBoundingBox(player, playerPos, characterSize); if (isColliding(projRect, playerRect)) { gameOver = true; messageDisplay.innerHTML = `You Were Tagged Back!<br><small>(Refresh to play again)</small>`; messageDisplay.style.display = 'block'; clearInterval(gameLoopInterval); gameLoopInterval = null; return; } }
+	function moveProjectiles() {
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+        const proj = projectiles[i];
+
+        // Update lifetime (assuming gameLoopIntervalMs is 16ms)
+        proj.lifetime -= gameLoopIntervalMs;
+        if (proj.lifetime <= 0) {
+            // Remove expired projectile
+            gameArea.removeChild(proj.element);
+            projectiles.splice(i, 1);
+            continue;
         }
+
+        // Update position as before
+        proj.pos.x += proj.velocity.x;
+        proj.pos.y += proj.velocity.y;
+        proj.pos = wrapPosition(proj.pos, projectileSize);
+        proj.element.style.left = proj.pos.x + 'px';
+        proj.element.style.top = proj.pos.y + 'px';
+
+        // Collision with the player remains the same
+        const projRect = getBoundingBox(null, proj.pos, projectileSize);
+        const playerRect = getBoundingBox(player, playerPos, characterSize);
+        if (isColliding(projRect, playerRect)) {
+            gameOver = true;
+            messageDisplay.innerHTML = `You Were Tagged Back!<br><small>(Refresh to play again)</small>`;
+            messageDisplay.style.display = 'block';
+            clearInterval(gameLoopInterval);
+            gameLoopInterval = null;
+            return;
+        }
+
+        // Optionally: Check collision with obstacles and remove if collided
+        for (const obs of obstacles) {
+            const obsRect = getObstacleBoundingBox(obs.data);
+            if (isColliding(projRect, obsRect)) {
+                gameArea.removeChild(proj.element);
+                projectiles.splice(i, 1);
+                break; // Exit the obstacle loop if projectile is removed
+            }
+        }
+    }
+    }
+
 
         /**
          * Controls the AI's movement (UPDATED FOR ADVANCED AI).
